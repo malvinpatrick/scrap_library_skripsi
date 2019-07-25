@@ -22,7 +22,7 @@ def scrap(browser, page_now=1):
     count = browser.find_elements_by_css_selector('div > .thumbnail > #hover')
     for i in count:
         i.click()
-        time.sleep(2)
+        time.sleep(1)
         button_close_modal = browser.find_element_by_xpath(
             "//*[@id='myModal']/div/div/div/button")
 
@@ -35,7 +35,7 @@ def scrap(browser, page_now=1):
         data_penerbit = str(data[2].text).split('|')
         penerbit = data_penerbit[0][0:-1]
         lokasi_terbit = data_penerbit[1][1:-1]
-        tahun_terbit = data_penerbit[2][1]
+        tahun_terbit = data_penerbit[2][1:]
         isbn = str(data[3].text).split('|')
 
         print('Judul : ' + judul)
