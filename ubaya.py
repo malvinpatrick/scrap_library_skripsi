@@ -2,6 +2,7 @@ import requests
 import json
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
+import sys
 
 
 def scrap_detail(url):
@@ -21,16 +22,21 @@ def scrap_detail(url):
         if isbn == '':
             isbn = '-'
 
+        temp = penerbit.split(':')
+
         print('Pengarang : ' + pengarang)
-        print('Penerbit : ' + penerbit)
+        print('Penerbit : ' + temp[1].split(',')[0][1:])
+        print('Lokasi Terbit : ' + temp[0])
+        print('Tahun Terbit : ' + temp[1].split(',')[1][1:])
         print('ISBN : ' + isbn)
+        print('Bahasa : Indonesia')
     else:
         print('Bukan Buku')
 
 
 def scrap(name, page_now=1):
     name = name.replace(' ', '%20')
-    url = 'http://digilib.ubaya.ac.id/index.php?page=list_search&key=' + \
+    url = 'http://digilib.ubaya.ac.id/index.php?page=list_search&kdbahasa=ID&key=' + \
         name+'&pages=' + str(page_now)
     source = requests.get(url).text
     soup = BeautifulSoup(source, 'lxml')
@@ -62,5 +68,5 @@ def scrap(name, page_now=1):
             scrap(link, pages)
 
 
-scrap('komputer', 1)
-# scrap_detail('http://digilib.ubaya.ac.id/data_pustaka-221656.html')
+keyword = sys.argv[1]
+scrap(keyword)

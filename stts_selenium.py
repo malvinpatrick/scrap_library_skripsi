@@ -6,9 +6,10 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import time
 from bs4 import BeautifulSoup
+import sys
 
 
-def scrap(browser, page_now=1):
+def scrap(browser, page_now=1, count_book=0):
     print("--- [ PAGE " + str(page_now) + ' ] ---')
 
     # wait jquery finised
@@ -18,11 +19,13 @@ def scrap(browser, page_now=1):
     except TimeoutException:
         print("Timed out waiting for page to load")
 
+    delay = 0.4
     # open modal every book
     count = browser.find_elements_by_css_selector('div > .thumbnail > #hover')
     for i in count:
         i.click()
-        time.sleep(1)
+        count_book += 1
+        time.sleep(delay)
         button_close_modal = browser.find_element_by_xpath(
             "//*[@id='myModal']/div/div/div/button")
 
@@ -33,19 +36,23 @@ def scrap(browser, page_now=1):
         judul = data[0].text
         penulis = str(str(data[1].text).split('|', 1)[0])[0:-1]
         data_penerbit = str(data[2].text).split('|')
-        penerbit = data_penerbit[0][0:-1]
+        penerbit = data_penerbit[0][8:-1]
         lokasi_terbit = data_penerbit[1][1:-1]
         tahun_terbit = data_penerbit[2][1:]
         isbn = str(data[3].text).split('|')
+        bahasa = data[4].text.split('|')
 
+        print('Buku ke - ' + str(count_book))
         print('Judul : ' + judul)
         print('Penulis : ' + penulis)
         print('Penerbit : ' + penerbit)
         print('Lokasi Terbit : ' + lokasi_terbit)
         print('Tahun Terbit : ' + tahun_terbit)
-        # print('ISBN : ' + (isbn[2])[5])
+        print('ISBN : ' + isbn[1][6:])
+        print('Bahasa : ' + bahasa[0][7:])
+        print()
 
-        time.sleep(1)
+        time.sleep(delay)
 
     # pagination
     pagination = browser.find_elements_by_css_selector(
@@ -61,9 +68,11 @@ def scrap(browser, page_now=1):
 
     if chosen != None:
         chosen.click()
-        scrap(browser, int(chosen.text))
+        scrap(browser, int(chosen.text), count_book)
         print()
 
+
+pencarian = sys.argv[1]
 
 browser = webdriver.Chrome(
     executable_path=r'C:\Users\MSI-PC\Downloads\chromedriver_win32\chromedriver.exe')
@@ -71,7 +80,7 @@ browser = webdriver.Chrome(
 browser.get("http://perpustakaan.stts.edu/index.php/FrontEnd/cari")
 
 keyword = browser.find_element_by_css_selector('input.txCari')
-keyword.send_keys('android', Keys.RETURN)
+keyword.send_keys(pencarian, Keys.RETURN)
 
 scrap(browser)
 browser.quit()
