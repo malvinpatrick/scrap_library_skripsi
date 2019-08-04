@@ -1,53 +1,70 @@
 import requests
 import json
 from bs4 import BeautifulSoup
-
-books = requests.post('http://perpustakaan.stts.edu/index.php/FrontEnd/cariAjax', data={
-    'submit': 'true',
-    'dataCari': 'komputer',
-    'jenis': 'Buku',
-    'filterRb': 'cari'
-})
-
-source = books.text
-result = json.loads(source)['hasil']
-
-data = []
-# for i in result:
-#     print(i['buku_judul'])
-
-soup = BeautifulSoup(json.loads(source)['halaman'], 'lxml')
-paging = soup.select('ul li a')
-
-for i in paging:
-    print(i['href'])
+import importlib
+import sys
+import general
 
 
-def scrap(name, page=1, offset=0):
-    if offset != 0:
-        url += '/' + offset
+def scrap(s, name, page=1, count=0, url='http://perpustakaan.stts.edu/index.php/FrontEnd/cariAjax'):
+    print("URL : " + url)
+    if page > 1:
+        param = {
+            'page': page
+        }
+        print("param :"+str(param))
+        books = s.get(url=url, params=param)
+    else:
+        data = {
+            'cb[]': 'judul',
+            'submit': 'true',
+            'dataCari': name,
+            'jenis': 'Buku',
+            'filterRb': 'cari',
+        }
+        print('data = ' + str(data))
+        books = s.post(url, data=data)
 
-    if page != 1:
-        url += '?page=' + page
-
-    books = requests.post('http://perpustakaan.stts.edu/index.php/FrontEnd/cariAjax', data={
-        'submit': 'true',
-        'dataCari': 'komputer',
-        'jenis': 'Buku',
-        'filterRb': 'cari'
-    })
     source = books.text
     result = json.loads(source)['hasil']
+
     for i in result:
-        print(i['buku_judul'])
+        count = count+1
+        print("BUKU KE-" + str(count))
+        judul = i['buku_judul']
+        penulis = i['buku_pengarang']
+        penerbit = i['buku_penerbit']
+        tahun = i['buku_terbit_tahun']
+        isbn = i['buku_isbn']
+        lokasi = i['buku_terbit_lokasi']
+        bahasa = i['buku_bahasa']
+        ddc = i['ddc_kode']
+
+        print('Judul :' + judul)
+        print('Penulis :' + penulis)
+        print('Penerbit :' + penerbit)
+        print('Tahun :' + tahun)
+        print('Lokasi :' + lokasi)
+        print('ISBN :' + isbn)
+        print('Bahasa :' + bahasa)
+        print('DDC : ' + ddc)
+        print()
+
+        insert_id = general.save_db(
+            judul, penulis, penerbit, tahun, lokasi, isbn, bahasa, "3", ddc)
 
     soup = BeautifulSoup(json.loads(source)['halaman'], 'lxml')
-    paging = soup.select('ul li a')
-    get_pagination(paging)
-
-
-def get_pagination(name, paging, now=1):
+    paging = soup.select('ul.pagination > li > a')
     for i in paging:
-        if i.text != '< First' and i.text != '<' and i.text != '>' and i.text != 'Last >':
-            print(i.text)
-            scrap(name, i.text, )
+        try:
+            if int(i.text) == page + 1:
+                scrap(s, name, int(i.text), count, i['href'])
+        except Exception as e:
+            pass
+
+
+nama = sys.argv[1].replace('+', ' ')
+s = requests.session()
+scrap(s, nama)
+# print()
+# scrap(s, 'komputer', 2, 12)

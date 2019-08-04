@@ -3,9 +3,35 @@ import json
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
 import sys
+import mysql.connector
+import urllib.request
+
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    passwd="",
+    database="dummy_buku"
+)
 
 
-def scrap_detail(url):
+def save_db(title, penulis, penerbit, tahun_terbit, lokasi_terbit, isbn, bahasa, category, id_perpustakaan):
+     # INSERT DB
+    mycursor = mydb.cursor()
+
+    sql = "INSERT INTO book (judul, penulis, penerbit, tahun_terbit, lokasi_terbit, isbn, bahasa, kategori, perpustakaan) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+    val = (title.upper(), penulis.upper(), penerbit.upper(),
+           tahun_terbit, lokasi_terbit.upper(), isbn, bahasa.upper(), category.upper(), id_perpustakaan)
+    mycursor.execute(sql, val)
+    mydb.commit()
+    return mycursor.lastrowid
+
+
+def save_thumbnail(url, id):
+    urllib.request.urlretrieve(
+        url, "thumbnail/" + str(id) + ".jpg")
+
+
+def scrap_detail(title, url, category):
     source = requests.get(url).text
     soup = BeautifulSoup(source, 'lxml')
     jenis = soup.select('.contentContainer table td')[0].select('span')[0].text
@@ -30,11 +56,23 @@ def scrap_detail(url):
         print('Tahun Terbit : ' + temp[1].split(',')[1][1:])
         print('ISBN : ' + isbn)
         print('Bahasa : Indonesia')
+
+        insert_id = save_db(title, pengarang, temp[1].split(',')[0][1:], temp[1].split(
+            ',')[1][1:], temp[0], isbn, 'Indonesia', category, '2')
+        url_image = soup.select('#imgfoto')[0]['src']
+
+        # cek thumbnail buku
+        try:
+            request = requests.head(url_image)
+            save_thumbnail(url_image, str(insert_id))
+            print("Thumbnail : YES")
+        except Exception as e:
+            print("Thumbnail : NO")
     else:
         print('Bukan Buku')
 
 
-def scrap(name, page_now=1):
+def scrap(name, category, page_now=1):
     name = name.replace(' ', '%20')
     url = 'http://digilib.ubaya.ac.id/index.php?page=list_search&kdbahasa=ID&key=' + \
         name+'&pages=' + str(page_now)
@@ -53,7 +91,7 @@ def scrap(name, page_now=1):
 
         # Detail Book
         link_detail = str(i.select('td')[0].select('a')[0]['href'])
-        scrap_detail(link_detail)
+        scrap_detail(title, link_detail, category)
         print('----------------------------------------')
 
     pagination = data.select('tr')[-1].select('a')
@@ -65,8 +103,9 @@ def scrap(name, page_now=1):
         pages = int(parsed[0])
 
         if page_now + 1 == pages:
-            scrap(link, pages)
+            scrap(link, category, pages)
 
 
 keyword = sys.argv[1]
-scrap(keyword)
+category = sys.argv[2]
+scrap(keyword, category)
