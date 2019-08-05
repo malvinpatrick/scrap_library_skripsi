@@ -2,35 +2,10 @@ import requests
 import json
 from bs4 import BeautifulSoup
 import sys
-import mysql.connector
-import urllib.request
-
-mydb = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    passwd="",
-    database="dummy_buku"
-)
+import general
 
 
-def save_db(title, penulis, penerbit, tahun_terbit, lokasi_terbit, isbn, bahasa, category, id_perpustakaan):
-     # INSERT DB
-    mycursor = mydb.cursor()
-
-    sql = "INSERT INTO book (judul, penulis, penerbit, tahun_terbit, lokasi_terbit, isbn, bahasa, kategori, perpustakaan) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-    val = (title.upper(), penulis.upper(), penerbit.upper(),
-           tahun_terbit, lokasi_terbit.upper(), isbn, bahasa.upper(), category.upper(), id_perpustakaan)
-    mycursor.execute(sql, val)
-    mydb.commit()
-    return mycursor.lastrowid
-
-
-def save_thumbnail(url, id):
-    urllib.request.urlretrieve(
-        url, "thumbnail/" + str(id) + ".jpg")
-
-
-def scrap_detail(url, title, category):
+def scrap_detail(url, title):
     source = requests.get(url).text
     soup = BeautifulSoup(source, 'lxml')
     data = soup.select('#dtlbk-infobk table tr')
@@ -41,7 +16,8 @@ def scrap_detail(url, title, category):
     penerbit = '-'
     tahun_terbit = '-'
     lokasi_terbit = '-'
-    bahasa = 'Indonesia'
+    bahasa = '-'
+    new_ddc = None
 
     for i in data:
         detail = i.select('td')
@@ -67,19 +43,39 @@ def scrap_detail(url, title, category):
         elif row == 'Bahasa':
             bahasa = detail[2].text
             print('Bahasa : ' + bahasa)
+        elif row == 'DDC':
+            ddc = detail[2].text
+            temp = ddc.split(' ')
+
+            index = None
+            for idx, text in enumerate(temp):
+                for i in text:
+                    if i.isalpha():
+                        index = idx
+                        break
+                if index != None:
+                    break
+            if index != None:
+                if len(temp) > 1 and index == 0:
+                    new_ddc = temp[1]
+                elif index > 0:
+                    new_ddc = temp[0]
+            else:
+                new_ddc = temp[0]
 
     url_image = soup.select('#dtlbk-cover img')[0]['src']
-    print('URL Image : ' + url_image)
+    # print('URL Image : ' + url_image)
     print('ISBN : ' + isbn)
+    print('DDC : ' + ('-' if new_ddc == None else new_ddc))
 
     # INSERT DB
-    insert_id = save_db(title, penulis, penerbit, tahun_terbit,
-                        lokasi_terbit, isbn, bahasa, category, "1")
+    insert_id = general.save_db(
+        title, penulis, penerbit, tahun_terbit, lokasi_terbit, isbn, bahasa, "1", new_ddc)
     if url_image != 'images/noimage-big.gif':
-        save_thumbnail(url_image, str(insert_id))
+        general.save_thumbnail(url_image, str(insert_id))
 
 
-def scrap(name, category):
+def scrap(name):
     url = "http://katalog.wima.ac.id/result.php?kategori=title&jenis=1&vkriteria=" + name
     source = requests.get(url).text
     soup = BeautifulSoup(source, 'lxml')
@@ -92,11 +88,10 @@ def scrap(name, category):
         print('Buku ke-' + str(index))
         title = data.text
         scrap_detail('http://katalog.wima.ac.id/' +
-                     data['href'], title, category)
+                     data['href'], title)
         print()
 
 
 keyword = sys.argv[1]
-category = sys.argv[2]
-scrap(keyword, category)
+scrap(keyword)
 # scrap_detail('http://katalog.wima.ac.id/detail.php?id=79408&keepThis=true&TB_iframe=true&height=500&width=620')
